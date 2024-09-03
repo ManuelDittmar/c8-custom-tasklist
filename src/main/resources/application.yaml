@@ -1,0 +1,14 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          custom:
+            client-id: custom-tasklist
+            client-secret: xxxxx
+            scope: openid, profile, email
+            authorization-grant-type: authorization_code
+            redirect-uri: http://localhost:8080/login/oauth2/code/custom
+        provider:
+          custom:
+            issuer-uri: https://xxxx.de/auth/realms/camunda-platform
