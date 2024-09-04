@@ -12,3 +12,7 @@ spring:
         provider:
           custom:
             issuer-uri: https://xxxx.de/auth/realms/camunda-platform
+
+tasklist:
+  url: https://dittmeister.de/tasklist
+
