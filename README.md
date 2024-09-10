@@ -27,51 +27,49 @@ This generated password is for development use only. Your security configuration
 If you now login with username: user and the auto-generated password, you will be redirected to Camunda.
 However, you can see that you need to login again (default: demo/demo).
 
-So currently we have:
-1. ✔️ A custom login procedure
-2. ❌ No SSO Integration
-3. ❌ No mapping to Camunda
 
-## Configure SSO
-Next you have to add the oauth client dependency.
+## Configure OAuth2
+Next you have to add the oauth resource server dependency.
 
 ```
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-oauth2-client</artifactId>
-    </dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
 ```
-Create App in Identity
 
-![custom-app.png](docs%2Fcustom-app.png)
-
-Client can be configured via the application.yaml
+Configure the issuer-uri in the application.yml
 
 ```
 spring:
   security:
     oauth2:
-      client:
-        registration:
-          custom:
-            client-id: custom-tasklist
-            client-secret: xxxxx
-            scope: openid, profile, email
-            authorization-grant-type: authorization_code
-            redirect-uri: http://localhost:8080/login/oauth2/code/custom
-        provider:
-          custom:
-            issuer-uri: https://xxxx.de/auth/realms/camunda-platform
+      resourceserver:
+        jwt:
+          issuer-uri: https://dittmeister.de/auth/realms/camunda-platform
 ```
 
-Now on startup, you will be redirected to Keycloak.
+Return 401 if not authenticated
 
-![keycloak-login.png](docs%2Fkeycloak-login.png)
+```
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
 
-So currently we have:
-1. ✔️ A custom login procedure
-2. ✔️ SSO Integration
-3. ❌ No mapping to Camunda
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests(authorizeRequests ->
+            authorizeRequests
+                .anyRequest().authenticated()
+        )
+        .oauth2ResourceServer((oauth2) -> oauth2
+            .jwt(Customizer.withDefaults())
+        );
+    return http.build();
+  }
+}
+```
 
 ## Add Tasklist Client
 
@@ -93,13 +91,12 @@ Implement TasklistService + Controller
   @GetMapping("/my-tasks")
   @ResponseBody
   public List<Task> getTasks(Authentication authentication) throws TaskListException {
-    OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
-    String username = oidcUser.getUserInfo().getPreferredUsername();
-    return tasklistService.getAssignedTasks(username);
+    if (authentication != null && authentication.isAuthenticated()) {
+      Jwt jwt = (Jwt) authentication.getPrincipal();
+      String username = jwt.getClaim("preferred_username");
+      return tasklistService.getAssignedTasks(username);
+    }
+
+    throw new TaskListException("User not authenticated");
   }
 ```
-
-Now we have:
-1. ✔️ A custom login procedure
-2. ✔️ SSO Integration
-3. ✔️Mapping to Camunda
